@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #121218;
+  --foreground: #f3f4f6;
+}
+
+body {
+  color: var(--foreground);
+  background-color: var(--background);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+/* Accessible Minimum Touch Target Class & Utility (min-height 48px, min-width 48px) */
+.touch-target {
+  min-height: 48px;
+  min-width: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure interactive elements satisfy minimum 48px size */
+button,
+a.button-like,
+input[type="button"],
+input[type="submit"] {
+  min-height: 48px;
+  min-width: 48px;
+}
