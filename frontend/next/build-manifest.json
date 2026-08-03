@@ -1,0 +1,7 @@
+{
+  "pages": {
+    "/": [
+      "static/chunks/main.js"
+    ]
+  }
+}
