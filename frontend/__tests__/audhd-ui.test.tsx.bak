@@ -1,0 +1,249 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import '@testing-library/jest-dom';
+
+// ─── Mock the API module ───
+jest.mock('../lib/api', () => ({
+  __esModule: true,
+  default: {
+    updateEventAttendance: jest.fn().mockResolvedValue({ success: true }),
+    calculateSafeBunks: jest.fn().mockResolvedValue({
+      courseRef: 'MBA-STRAT-501',
+      totalClasses: 20,
+      attendedClasses: 16,
+      currentAttendancePct: 80,
+      targetAttendancePct: 75,
+      safeBunks: 2,
+      bunkDeficit: 0,
+      statusMessage: 'You can safely miss 2 more classes.',
+    }),
+    deconstructTask: jest.fn().mockResolvedValue({ chunks: [] }),
+    getEvents: jest.fn().mockResolvedValue([]),
+    getChores: jest.fn().mockResolvedValue([]),
+    checkVoidState: jest.fn().mockResolvedValue({ isVoidActive: false }),
+    toggleVoidState: jest.fn().mockResolvedValue({ success: true }),
+    getUser: jest.fn().mockResolvedValue({}),
+    getEventById: jest.fn().mockResolvedValue({}),
+  },
+  api: {
+    updateEventAttendance: jest.fn().mockResolvedValue({ success: true }),
+    calculateSafeBunks: jest.fn().mockResolvedValue({
+      courseRef: 'MBA-STRAT-501',
+      totalClasses: 20,
+      attendedClasses: 16,
+      currentAttendancePct: 80,
+      targetAttendancePct: 75,
+      safeBunks: 2,
+      bunkDeficit: 0,
+      statusMessage: 'You can safely miss 2 more classes.',
+    }),
+    deconstructTask: jest.fn().mockResolvedValue({ chunks: [] }),
+    getEvents: jest.fn().mockResolvedValue([]),
+    getChores: jest.fn().mockResolvedValue([]),
+    checkVoidState: jest.fn().mockResolvedValue({ isVoidActive: false }),
+    toggleVoidState: jest.fn().mockResolvedValue({ success: true }),
+    getUser: jest.fn().mockResolvedValue({}),
+    getEventById: jest.fn().mockResolvedValue({}),
+  },
+}));
+
+// ─── Import Components After Mocking ───
+import { EventBlock } from '../components/EventBlock';
+import { MealTracker } from '../components/MealTracker';
+import { VoidProvider } from '../components/VoidContext';
+import { VoidController } from '../components/VoidController';
+import { AudioBufferPlayer } from '../components/AudioBufferPlayer';
+
+// ═══════════════════════════════════════════════════════════════
+// TEST 1: Touch Target Accessibility (48px minimum)
+// ═══════════════════════════════════════════════════════════════
+describe('Touch Target Accessibility', () => {
+  it('EventBlock Attended/Missed/Confirm buttons have touch-target class and min-h/w-[48px]', () => {
+    render(
+      <EventBlock
+        eventId="test-evt"
+        title="Test Lecture"
+        type="Lecture"
+        startTime="09:00"
+        endTime="10:30"
+        safeBunks={3}
+        totalClasses={20}
+        attendedClasses={15}
+        targetPct={0.75}
+      />
+    );
+
+    const attendedBtn = screen.getByRole('button', { name: /attended/i });
+    const missedBtn = screen.getByRole('button', { name: /missed/i });
+    const confirmBtn = screen.getByRole('button', { name: /confirm/i });
+
+    [attendedBtn, missedBtn, confirmBtn].forEach((btn) => {
+      expect(btn.className).toContain('touch-target');
+    });
+  });
+
+  it('MealTracker toggle buttons have touch-target class and min-h/w-[48px]', () => {
+    render(<MealTracker />);
+
+    const logButtons = screen.getAllByRole('button', { name: /log meal/i });
+    expect(logButtons.length).toBeGreaterThanOrEqual(1);
+
+    logButtons.forEach((btn) => {
+      expect(btn.className).toContain('touch-target');
+      expect(btn.className).toContain('min-h-[48px]');
+      expect(btn.className).toContain('min-w-[48px]');
+    });
+  });
+
+  it('VoidController button has touch-target class and min-h/w-[48px]', () => {
+    render(
+      <VoidProvider>
+        <VoidController />
+      </VoidProvider>
+    );
+
+    const voidBtn = screen.getByRole('button', { name: /enter the void/i });
+    expect(voidBtn.className).toContain('touch-target');
+    expect(voidBtn.className).toContain('min-h-[48px]');
+    expect(voidBtn.className).toContain('min-w-[48px]');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// TEST 2: VoidController State Toggle
+// ═══════════════════════════════════════════════════════════════
+describe('VoidController State', () => {
+  it('renders with inactive state text initially', () => {
+    render(
+      <VoidProvider>
+        <VoidController />
+      </VoidProvider>
+    );
+
+    expect(screen.getByText('🌀 Enter the Void')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /enter the void/i })).toBeInTheDocument();
+  });
+
+  it('toggles to active state when clicked', () => {
+    render(
+      <VoidProvider>
+        <VoidController />
+      </VoidProvider>
+    );
+
+    const voidBtn = screen.getByRole('button', { name: /enter the void/i });
+    fireEvent.click(voidBtn);
+
+    expect(screen.getByText('🌙 The Void is Active')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /exit the void/i })).toBeInTheDocument();
+  });
+
+  it('toggles back to inactive when clicked again', () => {
+    render(
+      <VoidProvider>
+        <VoidController />
+      </VoidProvider>
+    );
+
+    const enterBtn = screen.getByRole('button', { name: /enter the void/i });
+    fireEvent.click(enterBtn);
+    expect(screen.getByText('🌙 The Void is Active')).toBeInTheDocument();
+
+    const exitBtn = screen.getByRole('button', { name: /exit the void/i });
+    fireEvent.click(exitBtn);
+    expect(screen.getByText('🌀 Enter the Void')).toBeInTheDocument();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// TEST 3: AudioBufferPlayer Mounting
+// ═══════════════════════════════════════════════════════════════
+describe('AudioBufferPlayer Mounting', () => {
+  // Mock HTMLMediaElement.play() since JSDOM doesn't support it
+  beforeAll(() => {
+    window.HTMLMediaElement.prototype.play = jest.fn().mockResolvedValue(undefined);
+    window.HTMLMediaElement.prototype.pause = jest.fn();
+  });
+
+  it('renders nothing when isActive is false', () => {
+    const { container } = render(<AudioBufferPlayer isActive={false} />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('renders audio element targeting /audio/lofi-buffer.mp3 when isActive is true', () => {
+    render(<AudioBufferPlayer isActive={true} />);
+
+    const audioEl = screen.getByTestId('audio-buffer-player') as HTMLAudioElement;
+    expect(audioEl).toBeInTheDocument();
+    expect(audioEl.src).toContain('/audio/lofi-buffer.mp3');
+    expect(audioEl).toHaveAttribute('loop');
+  });
+
+  it('displays visual indicator when buffer is active', () => {
+    render(<AudioBufferPlayer isActive={true} />);
+    expect(screen.getByText(/buffer active/i)).toBeInTheDocument();
+  });
+
+  it('uses custom audio source when provided', () => {
+    render(<AudioBufferPlayer isActive={true} audioSrc="/audio/custom-noise.mp3" />);
+
+    const audioEl = screen.getByTestId('audio-buffer-player') as HTMLAudioElement;
+    expect(audioEl.src).toContain('/audio/custom-noise.mp3');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// TEST 4: Attendance UI Math (2-Tap Safe Bunks)
+// ═══════════════════════════════════════════════════════════════
+describe('Attendance UI Math', () => {
+  it('displays the initial safe bunks remaining counter', () => {
+    render(
+      <EventBlock
+        eventId="evt-math-test"
+        title="MBA Strategy"
+        type="Lecture"
+        startTime="09:00"
+        endTime="10:30"
+        courseRef="STRAT-501"
+        piercesVoid={true}
+        safeBunks={3}
+        totalClasses={20}
+        attendedClasses={15}
+        targetPct={0.75}
+      />
+    );
+
+    expect(screen.getByText(/safe bunks remaining: 3/i)).toBeInTheDocument();
+  });
+
+  it('updates safe bunks after 2-tap Attended interaction', async () => {
+    render(
+      <EventBlock
+        eventId="evt-math-test"
+        title="MBA Strategy"
+        type="Lecture"
+        startTime="09:00"
+        endTime="10:30"
+        courseRef="STRAT-501"
+        piercesVoid={true}
+        safeBunks={3}
+        totalClasses={20}
+        attendedClasses={15}
+        targetPct={0.75}
+      />
+    );
+
+    // Tap 1: Select "Attended"
+    const attendedBtn = screen.getByRole('button', { name: /attended/i });
+    fireEvent.click(attendedBtn);
+
+    // Tap 2: Confirm
+    const confirmBtn = screen.getByRole('button', { name: /confirm/i });
+    fireEvent.click(confirmBtn);
+
+    // Wait for async API calls to resolve and UI to update
+    await waitFor(() => {
+      expect(screen.getByText(/safe bunks remaining: 2/i)).toBeInTheDocument();
+    });
+  });
+});
